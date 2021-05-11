@@ -1,0 +1,168 @@
+{
+	"info": {
+		"_postman_id": "8cf22b63-cd90-48a8-8772-938975bd33f8",
+		"name": "AxwayId",
+		"description": "Methods to get an AccessToken.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "AccessToken",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Sketchy loading of the jsrsasign library into Postman Sandbox",
+							"var navigator = {}; //fake a navigator object for the lib",
+							"var window = {}; //fake a window object for the lib",
+							"eval(pm.globals.get(\"jsrsasign_js\")); //import javascript jsrsasign",
+							"",
+							"var currentTime = +new Date(); // the current time in milliseconds",
+							"var issuedAtTimeSeconds = currentTime/1000;",
+							"var expirationTimeSeconds = currentTime/1000 + 3600;",
+							"",
+							"// Generate random string for \"jti\" claim - needed if client has Replay Prevention enabled",
+							"var newJti=\"\";",
+							"var charset = \"abcdefghijklmnopqrstuvwxyz0123456789\";",
+							"",
+							"for( var i=0; i < 12; i++ ) {",
+							"    newJti += charset.charAt(Math.floor(Math.random() * charset.length));",
+							"}",
+							"",
+							"pm.variables.set(\"jti\", newJti);",
+							"",
+							"// Create Header and Payload objects",
+							"var header = {",
+							"  \"kid\": pm.environment.get(\"kid\"),",
+							"  \"alg\": pm.environment.get(\"alg\")",
+							"};",
+							"",
+							"var payload = {",
+							"  \"iss\": pm.environment.get(\"iss\"),",
+							"  \"aud\": pm.environment.get(\"aud\"),",
+							"  \"sub\": pm.environment.get(\"sub\"),",
+							"  \"jti\": pm.variables.get(\"jti\"),",
+							"  \"exp\" : Math.ceil(expirationTimeSeconds),",
+							"  \"iat\" : Math.ceil(issuedAtTimeSeconds)",
+							"};",
+							"",
+							"// Prep the objects for a JWT",
+							"var sHeader = JSON.stringify(header);",
+							"var sPayload = JSON.stringify(payload);",
+							"",
+							"",
+							"var sJWT = KJUR.jws.JWS.sign(header.alg, sHeader, sPayload, pm.environment.get(\"privateKey\"));",
+							"",
+							"console.log(sJWT)",
+							"pm.environment.set(\"client_assertion\", sJWT);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"postman.setEnvironmentVariable(\"accessToken\", pm.response.json().access_token);",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						},
+						{
+							"key": "client_assertion_type",
+							"value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+							"type": "text"
+						},
+						{
+							"key": "client_assertion",
+							"value": "{{client_assertion}}",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{aud}}/protocol/openid-connect/token",
+					"host": [
+						"{{aud}}"
+					],
+					"path": [
+						"protocol",
+						"openid-connect",
+						"token"
+					]
+				},
+				"description": "Generate a signed JWT and request an access token. Access token is saved as {{accessToken}}"
+			},
+			"response": []
+		},
+		{
+			"name": "Download Jsrsasign",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"postman.setGlobalVariable(\"jsrsasign_js\", responseBody);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js",
+					"protocol": "http",
+					"host": [
+						"kjur",
+						"github",
+						"io"
+					],
+					"path": [
+						"jsrsasign",
+						"jsrsasign-latest-all-min.js"
+					]
+				},
+				"description": "*The file is already in the global import - so executing this should not be necessary.*\n\nLoad the RSA-Sign Crypto LIbrary in a global environment variable\n\nSource: http://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js\n\nGithub: https://github.com/kjur/jsrsasign"
+			},
+			"response": []
+		},
+		{
+			"name": "Introspect",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": ""
+				}
+			},
+			"response": []
+		}
+	]
+}
